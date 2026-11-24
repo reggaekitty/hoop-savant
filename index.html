@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Hoop Savant – Shooting, Defense &amp; Rebounding Dashboard</title>
+<title>Hoop Savant – Shooting, Defense, Rebounding &amp; On/Off Dashboard</title>
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f4f5f7;--card:#fff;--tx:#14213d;--mut:#6b7280;--bd:#dde1e7;--nav:#14213d;--acc:#d22d49;--hi:#d22d49;--lo:#3d7dca;--mid:#d9dce1}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1420;--card:#172033;--tx:#e8ecf3;--mut:#9aa5b8;--bd:#2a3550;--nav:#0a0f19;--mid:#3a4458}}
@@ -27,10 +27,10 @@ th:nth-child(3),td:nth-child(3){text-align:center}
 tbody tr{cursor:pointer}tbody tr:hover{background:var(--bg)}tr.sel{background:var(--bg)}
 .pill{display:inline-block;min-width:26px;padding:1px 5px;border-radius:10px;color:#fff;font-size:10.5px;font-weight:600;margin-left:3px;text-align:center}
 .pc{display:flex;align-items:center;gap:10px;margin:4px 0}
-.pc .nm{width:98px;text-align:right;font-size:13px;font-weight:600;color:var(--tx)}
+.pc .nm{width:104px;text-align:right;font-size:13px;font-weight:600;color:var(--tx)}
 .pc .bar{flex:1;height:28px;position:relative}.pc .bar::before{content:"";position:absolute;left:0;right:0;top:10px;height:8px;background:var(--mid);opacity:.7}.pc .bar::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:rgba(255,255,255,.55)}.pc .fill{position:absolute;left:0;top:0;height:28px}
 .pc .dot{position:absolute;top:-2px;width:32px;height:32px;border-radius:50%;margin-left:-26px;border:2px solid var(--card);color:#fff;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;z-index:2}
-.pc .v{width:54px;text-align:right;font-size:14px;font-weight:600}
+.pc .v{width:56px;text-align:right;font-size:14px;font-weight:600}
 h2{margin:0 0 2px;font-size:18px}.sub{color:var(--mut);font-size:12px;margin-bottom:8px}
 .two{display:grid;grid-template-columns:1fr;gap:12px}
 @media (min-width:900px){#pcard .two{grid-template-columns:1fr 1fr;align-items:start}}
@@ -40,11 +40,13 @@ svg{width:100%;height:auto;display:block;max-width:520px;margin:0 auto}
 .split-bar{display:flex;height:24px;border-radius:6px;overflow:hidden;margin:10px 0 6px;border:1px solid var(--bd);font-size:11px;font-weight:700;color:#fff}
 .split-off{background:#d22d49;display:flex;align-items:center;justify-content:center;padding:0 6px}
 .split-def{background:#3d7dca;display:flex;align-items:center;justify-content:center;padding:0 6px}
+.pos-val{color:#ef4444;font-weight:700}
+.neg-val{color:#3b82f6;font-weight:700}
 </style></head><body>
-<header><div class="h-in"><h1>HOOP <span>SAVANT</span></h1><p>Shooting, Defense &amp; Rebounding Dashboard · percentile rankings &amp; shot charts</p></div></header>
+<header><div class="h-in"><h1>HOOP <span>SAVANT</span></h1><p>Shooting, Defense, Rebounding &amp; On/Off Dashboard · percentile rankings &amp; shot charts</p></div></header>
 <main>
 <div class="card"><div class="filters">
-<div><label>View</label><select id="view"><option>Shooting</option><option>Defense</option><option>Rebounding</option></select></div>
+<div><label>View</label><select id="view"><option>Shooting</option><option>Defense</option><option>Rebounding</option><option>On/Off</option></select></div>
 <div><label>Season</label><select id="season"></select></div>
 <div><label id="rl">Shot Range</label><select id="rng"><option>Overall</option><option>Catch and Shoot</option><option>Pullups</option><option>Less Than 10 ft</option></select></div>
 <div><label>Per Mode</label><select id="mode"><option>Per Game</option><option>Totals</option></select></div>
@@ -59,27 +61,111 @@ svg{width:100%;height:auto;display:block;max-width:520px;margin:0 auto}
 <p class="note">Data: NBA.com dashboard via nba_api (regular seasons; last updated <span id="upd">–</span>). Percentiles are ranked among qualified players meeting the minimum filter.</p>
 </main>
 <script>
-const ALL={};let P=[],ZA=[];
-function setSeason(){P=ALL[$("season").value];ZA=[0,1,2,3,4,5].map(k=>{let m=0,a=0;P.forEach(p=>{m+=p.z[k][0];a+=p.z[k][1]});return m/a})}
+const ALL={},REB={},ONOFF={},DEF={};
+let P=[],ZA=[],OOMAP={},REBMAP={};
+function setSeason(){
+  const s=$("season").value;
+  P=ALL[s]||[];
+  ZA=[0,1,2,3,4,5].map(k=>{let m=0,a=0;P.forEach(p=>{m+=p.z[k][0];a+=p.z[k][1]});return m/a});
+}
 const $=id=>document.getElementById(id);
-const COLS=[["freq","FREQ"],["fgm","FGM"],["fga","FGA",1],["fgp","FG%",1],["efg","EFG%",1],["f2","2FG FREQ"],["fg2m","2FGM"],["fg2a","2FGA"],["fg2p","2FG%",1],["f3","3FG FREQ"],["fg3m","3PM"],["fg3a","3PA",1],["tpp","3P%",1]];
-const HD=[["age","AGE"],["gp","GP"],["g","G"],...COLS],PCT=new Set(["freq","f2","f3","fgp","efg","fg2p","tpp"]);
-const fmt=(k,v)=>PCT.has(k)?(v*100).toFixed(1):v.toFixed($("mode").value=="Totals"?0:1);
-function stat(p){const r=p.r[$("rng").value];if(!r)return null;const m=$("mode").value=="Totals"?1:1/p.gp;
-const[fm,fa,m2,a2,m3,a3,fr,f2,f3]=r;
-return{ok:fa>=+$("min").value&&fa>0,age:p.age,gp:p.gp,g:p.g,freq:fr,fgm:fm*m,fga:fa*m,fgp:fa?fm/fa:0,efg:fa?(fm+.5*m3)/fa:0,f2:f2,fg2m:m2*m,fg2a:a2*m,fg2p:a2?m2/a2:0,f3:f3,fg3m:m3*m,fg3a:a3*m,tpp:a3?m3/a3:0,z:p.z}}
 function col(p){p=Math.max(0,Math.min(100,p));const a=p<50?[61,125,202]:[210,45,73],b=[170,175,185],t=Math.abs(p-50)/50;
 return`rgb(${b.map((x,i)=>Math.round(x+(a[i]-x)*t))})`}
 function bc(p){p=Math.max(0,Math.min(100,p));const a=p<50?[70,105,180]:[217,34,43],b=[176,204,208],t=Math.pow(Math.abs(p-50)/50,.8);return`rgb(${b.map((x,i)=>Math.round(x+(a[i]-x)*t))})`}
+
+// Helper to lookup player in On/Off or Rebounding cache by ID or normalized name
+function buildLookupMaps(s){
+  OOMAP={}; REBMAP={};
+  (ONOFF[s]||[]).forEach(x=>{
+    if(x.id)OOMAP[x.id]=x;
+    if(x.n)OOMAP[x.n.toLowerCase()]=x;
+  });
+  (REB[s]||[]).forEach(x=>{
+    if(x.id)REBMAP[x.id]=x;
+    if(x.n)REBMAP[x.n.toLowerCase()]=x;
+  });
+}
+function getOO(p){return (p.id&&OOMAP[p.id])||OOMAP[(p.n||"").toLowerCase()]||null;}
+function getREB(p){return (p.id&&REBMAP[p.id])||REBMAP[(p.n||"").toLowerCase()]||null;}
+
+// SHOOTING (OFFENSE) VIEW — includes OREB, OREB%, OFF ON/OFF, ON ORTG, NET ON/OFF
+const COLS=[
+  ["freq","FREQ"],
+  ["fgm","FGM"],
+  ["fga","FGA",1],
+  ["fgp","FG%",1],
+  ["efg","EFG%",1],
+  ["f2","2FG FREQ"],
+  ["fg2m","2FGM"],
+  ["fg2a","2FGA"],
+  ["fg2p","2FG%",1],
+  ["f3","3FG FREQ"],
+  ["fg3m","3PM"],
+  ["fg3a","3PA",1],
+  ["tpp","3P%",1],
+  ["oreb","OREB",1],
+  ["orebp","OREB%",1],
+  ["ono","ON ORTG",1],
+  ["odf","OFF ON/OFF",1,1],
+  ["ndf","NET ON/OFF",1,1]
+];
+const HD=[["age","AGE"],["gp","GP"],["g","G"],...COLS];
+const PCT=new Set(["freq","f2","f3","fgp","efg","fg2p","tpp","orebp"]);
+const SIGNED_S=new Set(["odf","ndf"]);
+function fmt(k,v){
+  if(v==null)return "–";
+  if(PCT.has(k))return (v*100).toFixed(1);
+  if(SIGNED_S.has(k)){
+    const str=(v>0?"+":"")+v.toFixed(1);
+    return v>0?`<span class="pos-val">${str}</span>`:(v<0?`<span class="neg-val">${str}</span>`:str);
+  }
+  if(k==="ono")return v.toFixed(1);
+  return v.toFixed($("mode").value=="Totals"?0:1);
+}
+function stat(p){
+  const r=p.r[$("rng").value];if(!r)return null;
+  const m=$("mode").value=="Totals"?1:1/p.gp;
+  const[fm,fa,m2,a2,m3,a3,fr,f2,f3]=r;
+  const rb=getREB(p), oo=getOO(p);
+  return{
+    ok:fa>=+$("min").value&&fa>0,
+    age:p.age,gp:p.gp,g:p.g,
+    freq:fr,fgm:fm*m,fga:fa*m,fgp:fa?fm/fa:0,efg:fa?(fm+.5*m3)/fa:0,
+    f2:f2,fg2m:m2*m,fg2a:a2*m,fg2p:a2?m2/a2:0,
+    f3:f3,fg3m:m3*m,fg3a:a3*m,tpp:a3?m3/a3:0,
+    oreb:rb?rb.rb[0]*m:null,
+    orebp:rb?rb.rb[1]:null,
+    ono:oo?oo.oo[3]:null,
+    odf:oo?oo.oo[5]:null,
+    ndf:oo?oo.oo[11]:null,
+    z:p.z,
+    rb:rb?rb.rb:null,
+    oo:oo?oo.oo:null
+  };
+}
 let sk="efg",sel=-1,S=[];
-function calc(){S=P.map(stat);const Q=S.filter(s=>s&&s.ok);COLS.forEach(([k])=>{const v=Q.map(s=>s[k]);Q.forEach(s=>{s["p_"+k]=Math.round(100*v.filter(x=>x<s[k]).length/Math.max(1,v.length-1))})})}
-function renderS(){setSeason();calc();
-$("hd").innerHTML="<th>#</th><th>PLAYER</th><th>TEAM</th>"+HD.map(([k,l])=>`<th data-k="${k}">${l}${sk==k?" ▼":""}</th>`).join("");
-const q=$("q").value.toLowerCase(),ps=$("pos").value;
-const rows=P.map((p,i)=>i).filter(i=>S[i]&&S[i].ok&&(!ps||P[i].pos==ps)&&P[i].n.toLowerCase().includes(q)).sort((a,b)=>S[b][sk]-S[a][sk]);
-if(!rows.includes(sel))sel=rows.length?rows[0]:-1;
-$("tb").innerHTML=rows.map((i,j)=>`<tr data-i="${i}" class="${i==sel?"sel":""}"><td>${j+1}</td><td>${P[i].n}</td><td>${P[i].t}</td><td>${S[i].age}</td><td>${S[i].gp}</td><td>${S[i].g}</td>`+COLS.map(([k,l,pl])=>`<td>${fmt(k,S[i][k])}${pl?`<span class="pill" style="background:${col(S[i]["p_"+k])}">${S[i]["p_"+k]}</span>`:""}</td>`).join("")+"</tr>").join("")||"<tr><td colspan=19>No players found</td></tr>";
-card()}
+function calc(){
+  S=P.map(stat);
+  const Q=S.filter(s=>s&&s.ok);
+  COLS.forEach(([k])=>{
+    const v=Q.map(s=>s[k]).filter(x=>x!=null);
+    Q.forEach(s=>{
+      s["p_"+k]=s[k]==null?null:Math.round(100*v.filter(x=>x<s[k]).length/Math.max(1,v.length-1));
+    });
+  });
+}
+function renderS(){
+  setSeason();calc();
+  $("hd").innerHTML="<th>#</th><th>PLAYER</th><th>TEAM</th>"+HD.map(([k,l])=>`<th data-k="${k}">${l}${sk==k?" ▼":""}</th>`).join("");
+  const q=$("q").value.toLowerCase(),ps=$("pos").value;
+  const rows=P.map((p,i)=>i).filter(i=>S[i]&&S[i].ok&&(!ps||P[i].pos==ps)&&P[i].n.toLowerCase().includes(q)).sort((a,b)=>{
+    const x=S[a][sk],y=S[b][sk];
+    return (x==null)-(y==null)||(y-x);
+  });
+  if(!rows.includes(sel))sel=rows.length?rows[0]:-1;
+  $("tb").innerHTML=rows.map((i,j)=>`<tr data-i="${i}" class="${i==sel?"sel":""}"><td>${j+1}</td><td>${P[i].n}</td><td>${P[i].t}</td><td>${S[i].age}</td><td>${S[i].gp}</td><td>${S[i].g}</td>`+COLS.map(([k,l,pl])=>`<td>${fmt(k,S[i][k])}${pl&&S[i]["p_"+k]!=null?`<span class="pill" style="background:${col(S[i]["p_"+k])}">${S[i]["p_"+k]}</span>`:""}</td>`).join("")+"</tr>").join("")||"<tr><td colspan=24>No players found</td></tr>";
+  card();
+}
 function court(z){const c=k=>col(50+(z[k][1]?z[k][0]/z[k][1]-ZA[k]:0)*500),F=k=>z[k][1]?c(k):"var(--mid)";
 const T=(x,y,k,s)=>`<text x="${x}" y="${y}" text-anchor="middle" font-size="${s||15}" font-weight="700" fill="#fff"><title>${z[k][0]}/${z[k][1]}</title>${z[k][1]?Math.round(100*z[k][0]/z[k][1])+"%":"–"}</text>`;
 return`<svg viewBox="0 0 500 340"><defs><clipPath id="in"><path d="M30,0V139.5A237.5,237.5 0 0 0 470,139.5V0Z"/></clipPath><clipPath id="out"><path clip-rule="evenodd" d="M0,0H500V340H0Z M30,0V139.5A237.5,237.5 0 0 0 470,139.5V0Z"/></clipPath></defs>
@@ -90,40 +176,151 @@ return`<svg viewBox="0 0 500 340"><defs><clipPath id="in"><path d="M30,0V139.5A2
 <circle cx="250" cy="30" r="7" fill="none" stroke="#fff" stroke-width="2.5"/>
 ${T(250,66,0)}${T(250,140,1)}${T(110,100,2)}${T(390,100,2)}${T(15,80,3,12)}${T(485,80,4,12)}${T(250,300,5)}</svg>`}
 
-function card(){const p=P[sel],s=S[sel];if(!p||!s){$("pcard").innerHTML="<div class=sub>No qualified players for these filters.</div>";return}
-$("pcard").innerHTML=`<h2>${p.n}</h2><div class="sub">${p.t} · ${p.pos||"–"} · Age ${p.age} · ${$("season").value} · ${p.gp} GP (${p.g} G) · ${$("rng").value}</div>
-<div class="two"><div><div style="font-size:12px;color:var(--mut);text-transform:uppercase;margin-bottom:2px">Percentile Rankings</div>
-${COLS.filter(c=>c[0]!="freq").map(([k,l])=>{const pc=s["p_"+k];return`<div class="pc"><span class="nm">${l}</span><div class="bar"><div class="fill" style="width:${Math.max(pc,8)}%;background:${bc(pc)}"></div><div class="dot" style="left:${Math.max(pc,8)}%;background:${bc(pc)}">${pc}</div></div><span class="v">${fmt(k,s[k])}</span></div>`}).join("")}</div>
-<div><div style="font-size:12px;color:var(--mut);text-transform:uppercase;margin-bottom:4px">Shot Chart · FG% by zone</div>${court(s.z)}
-<div class="note">Red = above league-average efficiency, blue = below. Gray = no attempts. Hover a zone for makes/attempts.</div></div></div>`}
+function card(){
+  const p=P[sel],s=S[sel];
+  if(!p||!s){$("pcard").innerHTML="<div class=sub>No qualified players for these filters.</div>";return}
+  const bars=COLS.filter(c=>c[0]!="freq"&&s["p_"+c[0]]!=null).map(([k,l])=>{
+    const pc=s["p_"+k];
+    return`<div class="pc"><span class="nm">${l}</span><div class="bar"><div class="fill" style="width:${Math.max(pc,8)}%;background:${bc(pc)}"></div><div class="dot" style="left:${Math.max(pc,8)}%;background:${bc(pc)}">${pc}</div></div><span class="v">${fmt(k,s[k])}</span></div>`;
+  }).join("");
+  const ooSummary = s.oo ? `
+    <div class="mini" style="margin-top:12px">
+      <div style="font-size:12px;color:var(--mut);text-transform:uppercase;margin-bottom:4px">Offensive Rebounding &amp; On/Off Impact</div>
+      <table>
+        <thead><tr><th>OREB</th><th>OREB%</th><th>OFF BOX</th><th>ON ORTG</th><th>OFF ORTG</th><th>OFF ON/OFF</th><th>NET ON/OFF</th></tr></thead>
+        <tbody><tr>
+          <td>${s.oreb!=null?s.oreb.toFixed($("mode").value=="Totals"?0:1):"–"}</td>
+          <td>${s.orebp!=null?(s.orebp*100).toFixed(1)+"%":"–"}</td>
+          <td>${s.rb?(s.rb[7]*($("mode").value=="Totals"?1:1/p.gp)).toFixed($("mode").value=="Totals"?0:1):"–"}</td>
+          <td>${s.oo[3].toFixed(1)}</td>
+          <td>${s.oo[4].toFixed(1)}</td>
+          <td>${fmt("odf",s.oo[5])}</td>
+          <td>${fmt("ndf",s.oo[11])}</td>
+        </tr></tbody>
+      </table>
+    </div>` : "";
+  $("pcard").innerHTML=`<h2>${p.n}</h2><div class="sub">${p.t} · ${p.pos||"–"} · Age ${p.age} · ${$("season").value} · ${p.gp} GP (${p.g} G) · ${$("rng").value}</div>
+  <div class="two">
+    <div>
+      <div style="font-size:12px;color:var(--mut);text-transform:uppercase;margin-bottom:2px">Offensive &amp; Shooting Percentile Rankings</div>
+      ${bars}
+    </div>
+    <div>
+      <div style="font-size:12px;color:var(--mut);text-transform:uppercase;margin-bottom:4px">Shot Chart · FG% by zone</div>
+      ${court(s.z)}
+      <div class="note">Red = above league-average efficiency, blue = below. Gray = no attempts. Hover a zone for makes/attempts.</div>
+      ${ooSummary}
+    </div>
+  </div>`;
+}
 $("tb").onclick=e=>{const r=e.target.closest("tr");if(r&&r.dataset.i){sel=+r.dataset.i;render();$("pcard").scrollIntoView({behavior:"smooth",block:"nearest"})}};
-$("hd").onclick=e=>{const k=e.target.dataset.k;if(k){const v=$("view").value;if(v=="Defense")dk=k;else if(v=="Rebounding")rk=k;else sk=k;render()}};
+$("hd").onclick=e=>{const k=e.target.dataset.k;if(k){const v=$("view").value;if(v=="Defense")dk=k;else if(v=="Rebounding")rk=k;else if(v=="On/Off")ook=k;else sk=k;render()}};
 async function load(s){if(!ALL[s]){const r=await fetch("data/"+s+".json");ALL[s]=await r.json()}}
 
-// DEFENSE VIEW
-const DEF={},RS=["Overall","Catch and Shoot","Pullups","Less Than 10 ft"],RD=["Overall","2 Pointers","3 Pointers","Less Than 6Ft","Greater Than 15Ft"];
+// DEFENSE VIEW — includes DREB, DREB%, DEF BOX OUTS, DEF ON/OFF, ON DRTG, NET ON/OFF
+const RS=["Overall","Catch and Shoot","Pullups","Less Than 10 ft"],RD=["Overall","2 Pointers","3 Pointers","Less Than 6Ft","Greater Than 15Ft"];
 async function loadD(s){if(!DEF[s]){DEF[s]=await(await fetch("data/defense-"+s+".json")).json()}}
-const DC=[["m","MIN",p=>p.m,1],["dr","DEF RTG",p=>p.d[0],0,1,1],["dreb","DREB",p=>p.d[1],1],["drp","DREB%",p=>p.d[2],0,1,0,1],["stl","STL",p=>p.d[3],1],["stp","%STL",p=>p.d[4],0,1,0,1],["blk","BLK",p=>p.d[5],1],["bkp","%BLK",p=>p.d[6],0,1,0,1],["dws","DWS",p=>p.d[7],0,1],["cs","CONTESTED",p=>p.d[8],1,1],["dfl","DEFL",p=>p.d[9],1,1],["chg","CHARGES",p=>p.d[10],1,1],["dfga","D FGA",(p,r)=>r[1],1],["dfgm","D FGM",(p,r)=>r[0],1],["dfg","D FG%",(p,r)=>r[2],0,1,1,1],["nfg","NORMAL FG%",(p,r)=>r[3],0,0,0,1],["pm","FG% DIFF",(p,r)=>r[4],0,1,1,1]];
+// [key,label,getter,isCount,slider,lowerIsBetter,isPct,isSigned]
+const DC=[
+  ["m","MIN",p=>p.m,1],
+  ["dr","DEF RTG",p=>p.d[0],0,1,1],
+  ["ond","ON DRTG",(p,r,oo)=>oo?oo.oo[6]:p.d[0],0,1,1],
+  ["ddf","DEF ON/OFF",(p,r,oo)=>oo?oo.oo[8]:null,0,1,1,0,1],
+  ["ndf","NET ON/OFF",(p,r,oo)=>oo?oo.oo[11]:null,0,1,0,0,1],
+  ["dreb","DREB",(p,r,oo,rb)=>rb?rb.rb[2]:p.d[1],1,1],
+  ["drp","DREB%",(p,r,oo,rb)=>rb?rb.rb[3]:p.d[2],0,1,0,1],
+  ["dbox","DEF BOX",(p,r,oo,rb)=>rb?rb.rb[8]:null,1,1],
+  ["stl","STL",p=>p.d[3],1],
+  ["stp","%STL",p=>p.d[4],0,1,0,1],
+  ["blk","BLK",p=>p.d[5],1],
+  ["bkp","%BLK",p=>p.d[6],0,1,0,1],
+  ["dws","DWS",p=>p.d[7],0,1],
+  ["cs","CONTESTED",p=>p.d[8],1,1],
+  ["dfl","DEFL",p=>p.d[9],1,1],
+  ["chg","CHARGES",p=>p.d[10],1,1],
+  ["dfga","D FGA",(p,r)=>r[1],1],
+  ["dfgm","D FGM",(p,r)=>r[0],1],
+  ["dfg","D FG%",(p,r)=>r[2],0,1,1,1],
+  ["nfg","NORMAL FG%",(p,r)=>r[3],0,0,0,1],
+  ["pm","FG% DIFF",(p,r)=>r[4],0,1,1,1]
+];
 let dk="pm",DS=[];
-const fD=(c,v,t)=>v==null?"–":c[6]?((c[0]=="pm"&&v>0?"+":"")+(v*100).toFixed(1)):v.toFixed(t&&c[3]?0:1);
-function dstat(p){const r=p.r[$("rng").value];if(!r)return null;const m=$("mode").value=="Totals"?1:1/p.gp;const o={ok:r[1]>=+$("min").value&&r[1]>0};DC.forEach(c=>{const v=c[2](p,r);o[c[0]]=v==null?null:(c[3]?v*m:v)});return o}
-function renderD(){P=DEF[$("season").value];DS=P.map(dstat);const Q=DS.filter(s=>s&&s.ok),tot=$("mode").value=="Totals";
-DC.filter(c=>c[4]).forEach(c=>{const k=c[0],v=Q.map(s=>s[k]).filter(x=>x!=null);Q.forEach(s=>{s["p_"+k]=s[k]==null?null:Math.round(100*v.filter(x=>c[5]?x>s[k]:x<s[k]).length/Math.max(1,v.length-1))})});
-$("hd").innerHTML="<th>#</th><th>PLAYER</th><th>TEAM</th><th>AGE</th><th>GP</th>"+DC.map(c=>`<th data-k="${c[0]}">${c[1]}${dk==c[0]?" ▼":""}</th>`).join("");
-const q=$("q").value.toLowerCase(),ps=$("pos").value,low=DC.find(c=>c[0]==dk)[5];
-const rows=P.map((p,i)=>i).filter(i=>DS[i]&&DS[i].ok&&(!ps||P[i].pos==ps)&&P[i].n.toLowerCase().includes(q)).sort((a,b)=>{const x=DS[a][dk],y=DS[b][dk];return(x==null)-(y==null)||(low?x-y:y-x)});
-if(!rows.includes(sel))sel=rows.length?rows[0]:-1;
-$("tb").innerHTML=rows.map((i,j)=>{const s=DS[i],p=P[i];return`<tr data-i="${i}" class="${i==sel?"sel":""}"><td>${j+1}</td><td>${p.n}</td><td>${p.t}</td><td>${p.age}</td><td>${p.gp}</td>`+DC.map(c=>`<td>${fD(c,s[c[0]],tot)}${c[4]&&s["p_"+c[0]]!=null?`<span class="pill" style="background:${col(s["p_"+c[0]])}">${s["p_"+c[0]]}</span>`:""}</td>`).join("")+"</tr>"}).join("")||"<tr><td colspan=22>No players found</td></tr>";
-cardD(tot)}
-function cardD(tot){const p=P[sel],s=DS[sel];if(!p||!s){$("pcard").innerHTML="<div class=sub>No qualified players for these filters.</div>";return}
-const bars=DC.filter(c=>c[4]&&s["p_"+c[0]]!=null).map(c=>{const pc=s["p_"+c[0]],w=Math.max(pc,8);return`<div class="pc"><span class="nm">${c[1]}</span><div class="bar"><div class="fill" style="width:${w}%;background:${bc(pc)}"></div><div class="dot" style="left:${w}%;background:${bc(pc)}">${pc}</div></div><span class="v">${fD(c,s[c[0]],tot)}</span></div>`}).join("");
-const tr=RD.filter(k=>p.r[k]).map(k=>{const r=p.r[k];return`<tr><td>${k}</td><td>${r[1]}</td><td>${(r[2]*100).toFixed(1)}</td><td>${(r[3]*100).toFixed(1)}</td><td>${r[4]>0?"+":""}${(r[4]*100).toFixed(1)}</td></tr>`}).join("");
-$("pcard").innerHTML=`<h2>${p.n}</h2><div class="sub">${p.t} · ${p.pos||"–"} · Age ${p.age} · ${$("season").value} · ${p.gp} GP · ${$("rng").value}</div><div class="two"><div><div style="font-size:12px;color:var(--mut);text-transform:uppercase;margin-bottom:2px">Defensive Percentile Rankings</div>${bars}</div><div class="mini"><div style="font-size:12px;color:var(--mut);text-transform:uppercase;margin-bottom:4px">Opponent FG% by shot type</div><table><thead><tr><th>SHOT</th><th>FGA</th><th>D FG%</th><th>NORMAL</th><th>DIFF</th></tr></thead><tbody>${tr}</tbody></table><div class="note">Shots where ${p.n.split(" ")[0]} was the closest defender. A negative DIFF means opponents shot worse than they normally do. For DEF RTG, D FG% and FG% DIFF, lower is better, so the sliders are flipped (red = strong defense).</div></div></div>`}
+function fD(c,v,t){
+  if(v==null)return "–";
+  if(c[6])return ((c[0]=="pm"&&v>0?"+":"")+(v*100).toFixed(1));
+  if(c[7]){
+    const str=(v>0?"+":"")+v.toFixed(1);
+    const good=c[5]?v<0:v>0;
+    const bad=c[5]?v>0:v<0;
+    return good?`<span class="pos-val">${str}</span>`:(bad?`<span class="neg-val">${str}</span>`:str);
+  }
+  return v.toFixed(t&&c[3]?0:1);
+}
+function dstat(p){
+  const r=p.r[$("rng").value];if(!r)return null;
+  const m=$("mode").value=="Totals"?1:1/p.gp;
+  const oo=getOO(p), rb=getREB(p);
+  const o={ok:r[1]>=+$("min").value&&r[1]>0, oo:oo?oo.oo:null, rb:rb?rb.rb:null};
+  DC.forEach(c=>{const v=c[2](p,r,oo,rb);o[c[0]]=v==null?null:(c[3]?v*m:v)});
+  return o;
+}
+function renderD(){
+  P=DEF[$("season").value];DS=P.map(dstat);const Q=DS.filter(s=>s&&s.ok),tot=$("mode").value=="Totals";
+  DC.filter(c=>c[4]).forEach(c=>{
+    const k=c[0],v=Q.map(s=>s[k]).filter(x=>x!=null);
+    Q.forEach(s=>{s["p_"+k]=s[k]==null?null:Math.round(100*v.filter(x=>c[5]?x>s[k]:x<s[k]).length/Math.max(1,v.length-1))});
+  });
+  $("hd").innerHTML="<th>#</th><th>PLAYER</th><th>TEAM</th><th>AGE</th><th>GP</th>"+DC.map(c=>`<th data-k="${c[0]}">${c[1]}${dk==c[0]?" ▼":""}</th>`).join("");
+  const q=$("q").value.toLowerCase(),ps=$("pos").value,low=DC.find(c=>c[0]==dk)[5];
+  const rows=P.map((p,i)=>i).filter(i=>DS[i]&&DS[i].ok&&(!ps||P[i].pos==ps)&&P[i].n.toLowerCase().includes(q)).sort((a,b)=>{
+    const x=DS[a][dk],y=DS[b][dk];
+    return(x==null)-(y==null)||(low?x-y:y-x);
+  });
+  if(!rows.includes(sel))sel=rows.length?rows[0]:-1;
+  $("tb").innerHTML=rows.map((i,j)=>{const s=DS[i],p=P[i];return`<tr data-i="${i}" class="${i==sel?"sel":""}"><td>${j+1}</td><td>${p.n}</td><td>${p.t}</td><td>${p.age}</td><td>${p.gp}</td>`+DC.map(c=>`<td>${fD(c,s[c[0]],tot)}${c[4]&&s["p_"+c[0]]!=null?`<span class="pill" style="background:${col(s["p_"+c[0]])}">${s["p_"+c[0]]}</span>`:""}</td>`).join("")+"</tr>"}).join("")||"<tr><td colspan=26>No players found</td></tr>";
+  cardD(tot);
+}
+function cardD(tot){
+  const p=P[sel],s=DS[sel];
+  if(!p||!s){$("pcard").innerHTML="<div class=sub>No qualified players for these filters.</div>";return}
+  const bars=DC.filter(c=>c[4]&&s["p_"+c[0]]!=null).map(c=>{
+    const pc=s["p_"+c[0]],w=Math.max(pc,8);
+    return`<div class="pc"><span class="nm">${c[1]}</span><div class="bar"><div class="fill" style="width:${w}%;background:${bc(pc)}"></div><div class="dot" style="left:${w}%;background:${bc(pc)}">${pc}</div></div><span class="v">${fD(c,s[c[0]],tot)}</span></div>`;
+  }).join("");
+  const tr=RD.filter(k=>p.r[k]).map(k=>{const r=p.r[k];return`<tr><td>${k}</td><td>${r[1]}</td><td>${(r[2]*100).toFixed(1)}</td><td>${(r[3]*100).toFixed(1)}</td><td>${r[4]>0?"+":""}${(r[4]*100).toFixed(1)}</td></tr>`}).join("");
+  const m=tot?1:1/p.gp;
+  const defExtra = (s.oo || s.rb) ? `
+    <div style="font-size:12px;color:var(--mut);text-transform:uppercase;margin:12px 0 4px">Defensive Rebounding &amp; On/Off Impact</div>
+    <table>
+      <thead><tr><th>DREB</th><th>DREB%</th><th>DEF BOX</th><th>ON DRTG</th><th>OFF DRTG</th><th>DEF ON/OFF</th><th>NET ON/OFF</th></tr></thead>
+      <tbody><tr>
+        <td>${s.rb?(s.rb[2]*m).toFixed(tot?0:1):(p.d[1]*m).toFixed(tot?0:1)}</td>
+        <td>${s.rb&&s.rb[3]!=null?(s.rb[3]*100).toFixed(1)+"%":(p.d[2]!=null?(p.d[2]*100).toFixed(1)+"%":"–")}</td>
+        <td>${s.rb?(s.rb[8]*m).toFixed(tot?0:1):"–"}</td>
+        <td>${s.oo?s.oo[6].toFixed(1):"–"}</td>
+        <td>${s.oo?s.oo[7].toFixed(1):"–"}</td>
+        <td>${s.oo?fD([0,0,0,0,0,1,0,1],s.oo[8],tot):"–"}</td>
+        <td>${s.oo?fD([0,0,0,0,0,0,0,1],s.oo[11],tot):"–"}</td>
+      </tr></tbody>
+    </table>` : "";
+  $("pcard").innerHTML=`<h2>${p.n}</h2><div class="sub">${p.t} · ${p.pos||"–"} · Age ${p.age} · ${$("season").value} · ${p.gp} GP · ${$("rng").value}</div>
+  <div class="two">
+    <div>
+      <div style="font-size:12px;color:var(--mut);text-transform:uppercase;margin-bottom:2px">Defensive Percentile Rankings</div>
+      ${bars}
+    </div>
+    <div class="mini">
+      <div style="font-size:12px;color:var(--mut);text-transform:uppercase;margin-bottom:4px">Opponent FG% by shot type</div>
+      <table><thead><tr><th>SHOT</th><th>FGA</th><th>D FG%</th><th>NORMAL</th><th>DIFF</th></tr></thead><tbody>${tr}</tbody></table>
+      ${defExtra}
+      <div class="note" style="margin-top:8px">Shots where ${p.n.split(" ")[0]} was the closest defender. A negative DIFF or DEF ON/OFF means opponents scored worse with ${p.n.split(" ")[0]} on the floor (sliders flipped so red = strong defense).</div>
+    </div>
+  </div>`;
+}
 
-// REBOUNDING VIEW (Offensive & Defensive Rebounding)
-const REB={},RR=["Overall","Offensive","Defensive"];
-async function loadR(s){if(!REB[s]){REB[s]=await(await fetch("data/rebounding-"+s+".json")).json()}}
-// [key,label,getter,isCount,slider,lowerIsBetter,isPct]
+// REBOUNDING VIEW
+const RR=["Overall","Offensive","Defensive"];
+async function loadR(s){if(!REB[s]){try{const r=await fetch("data/rebounding-"+s+".json");if(r.ok)REB[s]=await r.json();else REB[s]=[];}catch(e){REB[s]=[];}}}
 const RC=[
   ["m","MIN",p=>p.m,1],
   ["reb","REB",p=>p.rb[4],1,1],
@@ -145,14 +342,13 @@ const fR=(c,v,t)=>v==null?"–":c[6]?(v*100).toFixed(1):v.toFixed(t&&c[3]?0:1);
 function rstat(p){
   const rng=$("rng").value;
   const m=$("mode").value=="Totals"?1:1/p.gp;
-  // Filter threshold checks total rebounds in the selected category (Overall, Offensive, or Defensive)
   const catRebs = rng==="Offensive" ? p.rb[0] : (rng==="Defensive" ? p.rb[2] : p.rb[4]);
   const o={ok: catRebs >= +$("min").value && p.gp > 0};
   RC.forEach(c=>{const v=c[2](p);o[c[0]]=v==null?null:(c[3]?v*m:v)});
   return o;
 }
 function renderR(){
-  P=REB[$("season").value];
+  P=REB[$("season").value]||[];
   RS_DATA=P.map(rstat);
   const Q=RS_DATA.filter(s=>s&&s.ok),tot=$("mode").value=="Totals";
   RC.filter(c=>c[4]).forEach(c=>{
@@ -209,17 +405,132 @@ function cardR(tot){
   </div>`;
 }
 
+// ON/OFF VIEW
+const ROO=["All Impact","Offensive Impact","Defensive Impact"];
+async function loadOO(s){if(!ONOFF[s]){try{const r=await fetch("data/onoff-"+s+".json");if(r.ok)ONOFF[s]=await r.json();else ONOFF[s]=[];}catch(e){ONOFF[s]=[];}}}
+const OOC=[
+  ["onm","ON MIN",p=>p.oo[0],1],
+  ["offm","OFF MIN",p=>p.oo[1],1],
+  ["msh","MIN%",p=>p.oo[2],0,1,0,1,0],
+  ["ndf","NET ON/OFF",p=>p.oo[11],0,1,0,0,1],
+  ["onn","ON NET",p=>p.oo[9],0,1,0,0,1],
+  ["offn","OFF NET",p=>p.oo[10],0,0,0,0,1],
+  ["odf","OFF ON/OFF",p=>p.oo[5],0,1,0,0,1],
+  ["ono","ON ORTG",p=>p.oo[3],0,1,0,0,0],
+  ["offo","OFF ORTG",p=>p.oo[4],0,0,0,0,0],
+  ["ddf","DEF ON/OFF",p=>p.oo[8],0,1,1,0,1],
+  ["ond","ON DRTG",p=>p.oo[6],0,1,1,0,0],
+  ["offd","OFF DRTG",p=>p.oo[7],0,0,0,0,0],
+  ["pace","ON PACE",p=>p.oo[12],0,0,0,0,0]
+];
+let ook="ndf",OOS=[];
+function fOO(c,v,tot){
+  if(v==null)return "–";
+  if(c[6])return (v*100).toFixed(1)+"%";
+  if(c[3])return tot ? v.toFixed(0) : v.toFixed(1);
+  const str = v.toFixed(1);
+  if(c[7]){
+    const signed = (v>0?"+":"")+str;
+    const good = c[5] ? v < 0 : v > 0;
+    const bad = c[5] ? v > 0 : v < 0;
+    if(good)return `<span class="pos-val">${signed}</span>`;
+    if(bad)return `<span class="neg-val">${signed}</span>`;
+    return signed;
+  }
+  return str;
+}
+function oostat(p){
+  const tot=$("mode").value=="Totals";
+  const m = tot ? 1 : 1/Math.max(1,p.gp);
+  const o={ok: p.oo[0] >= +$("min").value && p.gp > 0};
+  OOC.forEach(c=>{
+    const v=c[2](p);
+    o[c[0]] = v==null ? null : (c[3] ? v*m : v);
+  });
+  return o;
+}
+function renderOO(){
+  P=ONOFF[$("season").value]||[];
+  OOS=P.map(oostat);
+  const Q=OOS.filter(s=>s&&s.ok),tot=$("mode").value=="Totals";
+  OOC.filter(c=>c[4]).forEach(c=>{
+    const k=c[0],v=Q.map(s=>s[k]).filter(x=>x!=null);
+    Q.forEach(s=>{
+      s["p_"+k]=s[k]==null?null:Math.round(100*v.filter(x=>c[5]?x>s[k]:x<s[k]).length/Math.max(1,v.length-1));
+    });
+  });
+  $("hd").innerHTML="<th>#</th><th>PLAYER</th><th>TEAM</th><th>AGE</th><th>GP</th>"+OOC.map(c=>`<th data-k="${c[0]}">${c[1]}${ook==c[0]?" ▼":""}</th>`).join("");
+  const q=$("q").value.toLowerCase(),ps=$("pos").value,low=OOC.find(c=>c[0]==ook)[5];
+  const rows=P.map((p,i)=>i).filter(i=>OOS[i]&&OOS[i].ok&&(!ps||P[i].pos==ps)&&P[i].n.toLowerCase().includes(q)).sort((a,b)=>{
+    const x=OOS[a][ook],y=OOS[b][ook];
+    return (x==null)-(y==null)||(low?x-y:y-x);
+  });
+  if(!rows.includes(sel))sel=rows.length?rows[0]:-1;
+  $("tb").innerHTML=rows.map((i,j)=>{
+    const s=OOS[i],p=P[i];
+    return`<tr data-i="${i}" class="${i==sel?"sel":""}"><td>${j+1}</td><td>${p.n}</td><td>${p.t}</td><td>${p.age}</td><td>${p.gp}</td>`+OOC.map(c=>`<td>${fOO(c,s[c[0]],tot)}${c[4]&&s["p_"+c[0]]!=null?`<span class="pill" style="background:${col(s["p_"+c[0]])}">${s["p_"+c[0]]}</span>`:""}</td>`).join("")+"</tr>";
+  }).join("")||"<tr><td colspan=18>No players found</td></tr>";
+  cardOO(tot);
+}
+function cardOO(tot){
+  const p=P[sel],s=OOS[sel];
+  if(!p||!s){$("pcard").innerHTML="<div class=sub>No qualified players for these filters.</div>";return}
+  const bars=OOC.filter(c=>c[4]&&s["p_"+c[0]]!=null).map(c=>{
+    const pc=s["p_"+c[0]],w=Math.max(pc,8);
+    return`<div class="pc"><span class="nm">${c[1]}</span><div class="bar"><div class="fill" style="width:${w}%;background:${bc(pc)}"></div><div class="dot" style="left:${w}%;background:${bc(pc)}">${pc}</div></div><span class="v">${fOO(c,s[c[0]],tot)}</span></div>`;
+  }).join("");
+  const oo=p.oo;
+  const sgn=(v,inv=false)=>{
+    if(v==null)return "–";
+    const str=(v>0?"+":"")+v.toFixed(1);
+    const good=inv?v<0:v>0;
+    const bad=inv?v>0:v<0;
+    return good?`<span class="pos-val">${str}</span>`:(bad?`<span class="neg-val">${str}</span>`:str);
+  };
+  const onPct=Math.round((oo[2]||0)*100);
+  const offPct=100-onPct;
+  $("pcard").innerHTML=`<h2>${p.n}</h2><div class="sub">${p.t} · ${p.pos||"–"} · Age ${p.age} · ${$("season").value} · ${p.gp} GP · ${oo[0].toFixed(0)} On-Court Mins (${onPct}% of team mins)</div>
+  <div class="two">
+    <div>
+      <div style="font-size:12px;color:var(--mut);text-transform:uppercase;margin-bottom:2px">On/Off Impact Percentile Rankings</div>
+      ${bars}
+    </div>
+    <div class="mini">
+      <div style="font-size:12px;color:var(--mut);text-transform:uppercase;margin-bottom:4px">Team Rating Comparison (Per 100 Possessions)</div>
+      <div class="split-bar">
+        <div class="split-off" style="width:${Math.max(onPct,14)}%">ON ${onPct}%</div>
+        <div class="split-def" style="width:${Math.max(offPct,14)}%">OFF ${offPct}%</div>
+      </div>
+      <table>
+        <thead><tr><th>METRIC</th><th>ON COURT</th><th>OFF COURT</th><th>NET DIFF</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Offensive Rating</strong></td><td>${oo[3].toFixed(1)}</td><td>${oo[4].toFixed(1)}</td><td>${sgn(oo[5],false)}</td></tr>
+          <tr><td><strong>Defensive Rating</strong></td><td>${oo[6].toFixed(1)}</td><td>${oo[7].toFixed(1)}</td><td>${sgn(oo[8],true)}</td></tr>
+          <tr><td><strong>Net Rating</strong></td><td>${sgn(oo[9],false)}</td><td>${sgn(oo[10],false)}</td><td>${sgn(oo[11],false)}</td></tr>
+          <tr><td><strong>Minutes Played</strong></td><td>${oo[0].toFixed(0)}</td><td>${oo[1].toFixed(0)}</td><td>${onPct}% share</td></tr>
+        </tbody>
+      </table>
+      <div class="note" style="margin-top:8px">Ratings are team points scored/allowed per 100 possessions with ${p.n.split(" ")[0]} on vs. off the floor. For Defensive Rating and DEF ON/OFF, lower numbers are better, so sliders are flipped (red = stronger defense).</div>
+    </div>
+  </div>`;
+}
+
 function render(){
   const v=$("view").value;
   if(v=="Defense")renderD();
   else if(v=="Rebounding")renderR();
+  else if(v=="On/Off")renderOO();
   else renderS();
 }
 async function ensure(){
   const s=$("season").value,v=$("view").value;
-  if(v=="Defense")await loadD(s);
-  else if(v=="Rebounding")await loadR(s);
-  else await load(s);
+  // Load auxiliary datasets (Rebounding & On/Off) alongside Shooting & Defense so combined columns populate automatically
+  await Promise.all([
+    v=="Defense" ? loadD(s) : (v=="Rebounding" ? loadR(s) : (v=="On/Off" ? loadOO(s) : load(s))),
+    loadR(s),
+    loadOO(s)
+  ]);
+  buildLookupMaps(s);
 }
 ["view","season","rng","mode","pos","q","min"].forEach(id=>$(id).oninput=async()=>{
   if(id=="view"){
@@ -234,6 +545,12 @@ async function ensure(){
       $("rl").textContent="Rebound Type";
       $("ml").textContent="Min Rebs (season)";
       $("min").value=50;
+    } else if(v=="On/Off"){
+      $("rng").innerHTML=ROO.map(x=>`<option>${x}</option>`).join("");
+      $("rl").textContent="Impact Focus";
+      $("ml").textContent="Min On-Court Mins";
+      $("min").value=300;
+      ook="ndf";
     } else {
       $("rng").innerHTML=RS.map(x=>`<option>${x}</option>`).join("");
       $("rl").textContent="Shot Range";
@@ -248,9 +565,15 @@ async function ensure(){
     else if(r=="Defensive"){rk="dreb";$("min").value=40;}
     else {rk="reb";$("min").value=50;}
   }
+  if(id=="rng" && $("view").value=="On/Off"){
+    const r=$("rng").value;
+    if(r=="Offensive Impact")ook="odf";
+    else if(r=="Defensive Impact")ook="ddf";
+    else ook="ndf";
+  }
   if(id=="season")sel=-1;
   await ensure();
   render();
 });
-(async()=>{try{const m=await(await fetch("data/meta.json")).json();$("season").innerHTML=m.seasons.map(s=>`<option>${s}</option>`).join("");$("upd").textContent=new Date(m.updated).toLocaleString();await load(m.seasons[0]);render()}catch(e){$("tb").innerHTML="<tr><td colspan=19>Couldn’t load data. Open this through GitHub Pages or a local web server, not as a file.</td></tr>"}})();
+(async()=>{try{const m=await(await fetch("data/meta.json")).json();$("season").innerHTML=m.seasons.map(s=>`<option>${s}</option>`).join("");$("upd").textContent=new Date(m.updated).toLocaleString();await ensure();render()}catch(e){$("tb").innerHTML="<tr><td colspan=19>Couldn’t load data. Open this through GitHub Pages or a local web server, not as a file.</td></tr>"}})();
 </script></body></html>
