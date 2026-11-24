@@ -1,501 +1,96 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hoop Savant — NBA Defense & Hustle Analytics</title>
-  <style>
-    :root {
-      --bg: #0d1117;
-      --surface: #161b22;
-      --surface-hover: #1f2630;
-      --border: #30363d;
-      --text: #e6edf3;
-      --muted: #8b949e;
-      --accent: #3b82f6;
-      --elite: #ef4444;
-      --good: #f97316;
-      --avg: #64748b;
-      --poor: #38bdf8;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-    }
-    header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 1rem 1.5rem;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-    .brand h1 {
-      font-size: 1.35rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-    .badge {
-      background: rgba(59, 130, 246, 0.15);
-      color: #60a5fa;
-      border: 1px solid rgba(59, 130, 246, 0.35);
-      padding: 0.15rem 0.55rem;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-    .tabs {
-      display: flex;
-      gap: 0.5rem;
-      background: var(--bg);
-      padding: 0.25rem;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-    }
-    .tab-btn {
-      background: transparent;
-      border: none;
-      color: var(--muted);
-      padding: 0.45rem 0.9rem;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-    .tab-btn.active {
-      background: var(--accent);
-      color: #fff;
-    }
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 1.25rem 1.5rem;
-    }
-    .controls {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 0.75rem;
-      margin-bottom: 1.25rem;
-      background: var(--surface);
-      padding: 1rem;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-    }
-    .control-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.3rem;
-    }
-    .control-group label {
-      font-size: 0.75rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      font-weight: 600;
-    }
-    select, input {
-      background: var(--bg);
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 0.5rem 0.65rem;
-      font-size: 0.875rem;
-      outline: none;
-    }
-    select:focus, input:focus {
-      border-color: var(--accent);
-    }
-    .table-wrap {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      overflow-x: auto;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.85rem;
-    }
-    th, td {
-      padding: 0.7rem 0.85rem;
-      text-align: right;
-      border-bottom: 1px solid var(--border);
-      white-space: nowrap;
-    }
-    th:first-child, td:first-child,
-    th:nth-child(2), td:nth-child(2) {
-      text-align: left;
-    }
-    th {
-      background: #12171f;
-      color: var(--muted);
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      cursor: pointer;
-      user-select: none;
-    }
-    th:hover { color: var(--text); }
-    tbody tr { cursor: pointer; transition: background 0.12s ease; }
-    tbody tr:hover { background: var(--surface-hover); }
-    .player-name { font-weight: 600; color: #fff; }
-    .team-tag {
-      font-size: 0.75rem;
-      color: var(--muted);
-      background: var(--bg);
-      padding: 0.15rem 0.45rem;
-      border-radius: 4px;
-      border: 1px solid var(--border);
-    }
-    .pct-pill {
-      display: inline-block;
-      min-width: 34px;
-      text-align: center;
-      padding: 0.15rem 0.4rem;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: #fff;
-    }
-    /* Savant-style percentile card modal */
-    .modal-backdrop {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.72);
-      z-index: 50;
-      align-items: center;
-      justify-content: center;
-      padding: 1rem;
-    }
-    .modal-backdrop.open { display: flex; }
-    .modal {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      max-width: 680px;
-      width: 100%;
-      padding: 1.5rem;
-      max-height: 90vh;
-      overflow-y: auto;
-    }
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 1rem;
-      margin-bottom: 1.25rem;
-    }
-    .close-btn {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 0.3rem 0.65rem;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    .bar-row {
-      display: grid;
-      grid-template-columns: 165px 1fr 56px;
-      align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 0.65rem;
-      font-size: 0.82rem;
-    }
-    .bar-track {
-      height: 12px;
-      background: var(--bg);
-      border-radius: 999px;
-      overflow: hidden;
-      border: 1px solid var(--border);
-    }
-    .bar-fill {
-      height: 100%;
-      border-radius: 999px;
-    }
-    .status-msg {
-      padding: 2rem;
-      text-align: center;
-      color: var(--muted);
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <div class="brand">
-      <h1>Hoop Savant</h1>
-      <span class="badge">Defense &amp; Hustle Engine</span>
-    </div>
-    <div class="tabs" id="viewTabs">
-      <button class="tab-btn active" data-view="overview">Defense Overview</button>
-      <button class="tab-btn" data-view="zones">Shot Zones &amp; DFG%</button>
-      <button class="tab-btn" data-view="hustle">Hustle &amp; Activity</button>
-    </div>
-  </header>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hoop Savant – Shooting Dashboard</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f4f5f7;--card:#fff;--tx:#14213d;--mut:#6b7280;--bd:#dde1e7;--nav:#14213d;--acc:#d22d49;--hi:#d22d49;--lo:#3d7dca;--mid:#d9dce1}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1420;--card:#172033;--tx:#e8ecf3;--mut:#9aa5b8;--bd:#2a3550;--nav:#0a0f19;--mid:#3a4458}}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.4 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif}
+header{background:var(--nav);color:#fff;padding:14px 16px}
+header h1{margin:0;font-size:20px;letter-spacing:.5px}header h1 span{color:#ff5a73}
+header p{margin:2px 0 0;font-size:12px;opacity:.75}
+main{max-width:1200px;margin:0 auto;padding:12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:12px;margin-bottom:12px}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+label{font-size:11px;color:var(--mut);text-transform:uppercase;display:block;margin-bottom:2px}
+select,input{width:100%;padding:7px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--tx);font-size:14px}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:1250px}
+th,td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--bd);white-space:nowrap}
+th{font-size:11px;text-transform:uppercase;color:var(--mut);cursor:pointer;user-select:none}
+th:first-child,td:first-child,th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3){text-align:left}td:nth-child(2),th:nth-child(2){position:sticky;left:0;background:var(--card);font-weight:600}
+tbody tr{cursor:pointer}tbody tr:hover{background:var(--bg)}tr.sel{background:var(--bg)}
+.pill{display:inline-block;min-width:28px;padding:1px 6px;border-radius:10px;color:#fff;font-size:11px;font-weight:600;margin-left:4px;text-align:center}
+.pc{display:flex;align-items:center;gap:10px;margin:4px 0}
+.pc .nm{width:84px;text-align:right;font-size:13px;font-weight:600;color:var(--tx)}
+.pc .bar{flex:1;height:28px;position:relative}.pc .bar::before{content:"";position:absolute;left:0;right:0;top:10px;height:8px;background:var(--mid);opacity:.7}.pc .bar::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:rgba(255,255,255,.55)}.pc .fill{position:absolute;left:0;top:0;height:28px}
+.pc .dot{position:absolute;top:-2px;width:32px;height:32px;border-radius:50%;margin-left:-26px;border:2px solid var(--card);color:#fff;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;z-index:2}
+.pc .v{width:52px;text-align:right;font-size:14px;font-weight:600}
+h2{margin:0 0 2px;font-size:18px}.sub{color:var(--mut);font-size:12px;margin-bottom:8px}
+.two{display:grid;grid-template-columns:1fr;gap:12px}
 
-  <div class="container">
-    <div class="controls">
-      <div class="control-group">
-        <label for="seasonSelect">Season</label>
-        <select id="seasonSelect">
-          <option value="2025-26">2025-26</option>
-          <option value="2024-25" selected>2024-25</option>
-          <option value="2023-24">2023-24</option>
-          <option value="2022-23">2022-23</option>
-          <option value="2021-22">2021-22</option>
-          <option value="2020-21">2020-21</option>
-          <option value="2019-20">2019-20</option>
-          <option value="2018-19">2018-19</option>
-          <option value="2017-18">2017-18</option>
-          <option value="2016-17">2016-17</option>
-          <option value="2015-16">2015-16</option>
-        </select>
-      </div>
-      <div class="control-group">
-        <label for="teamSelect">Team</label>
-        <select id="teamSelect"><option value="ALL">All Teams</option></select>
-      </div>
-      <div class="control-group">
-        <label for="minGpInput">Min Games Played</label>
-        <input type="number" id="minGpInput" value="20" min="1" max="82" />
-      </div>
-      <div class="control-group">
-        <label for="searchInput">Search Player</label>
-        <input type="text" id="searchInput" placeholder="e.g. Wembanyama, Caruso..." />
-      </div>
-    </div>
+svg{width:100%;height:auto;display:block}
+.note{font-size:11px;color:var(--mut)}
+</style></head><body>
+<header><h1>HOOP <span>SAVANT</span></h1><p>Shooting Dashboard · percentile rankings &amp; shot charts</p></header>
+<main>
+<div class="card"><div class="filters">
+<div><label>Season</label><select id="season"></select></div>
+<div><label>Shot Range</label><select id="rng"><option>Overall</option><option>Catch and Shoot</option><option>Pullups</option><option>Less Than 10 ft</option></select></div>
+<div><label>Per Mode</label><select id="mode"><option>Per Game</option><option>Totals</option></select></div>
+<div><label>Position</label><select id="pos"><option value="">All Positions</option><option>Guard</option><option>Forward</option><option>Center</option></select></div>
+<div><label>Min FGA (season)</label><input id="min" type="number" value="150" min="0"></div>
+<div><label>Search</label><input id="q" placeholder="Player name"></div>
+</div></div>
+<div class="two">
+<div class="card"><h2>Leaderboard</h2><div class="sub">Tap any column header to sort. Tap a row to open the player card below.</div><div class="wrap"><table><thead><tr id="hd"></tr></thead><tbody id="tb"></tbody></table></div></div>
+<div class="card" id="pcard"></div>
+</div>
+<p class="note">Data: NBA.com shot dashboard via nba_api (regular seasons; last updated <span id="upd">–</span>). Percentiles are ranked among players meeting the Min FGA filter. Shot chart zones use NBA.com\'s 6 shooting zones; hover a zone for makes/attempts.</p>
+</main>
+<script>
+const ALL={};let P=[],ZA=[];
+function setSeason(){P=ALL[$("season").value];ZA=[0,1,2,3,4,5].map(k=>{let m=0,a=0;P.forEach(p=>{m+=p.z[k][0];a+=p.z[k][1]});return m/a})}
+const $=id=>document.getElementById(id);
+const COLS=[["freq","FREQ"],["fgm","FGM"],["fga","FGA",1],["fgp","FG%",1],["efg","EFG%",1],["f2","2FG FREQ"],["fg2m","2FGM"],["fg2a","2FGA"],["fg2p","2FG%",1],["f3","3FG FREQ"],["fg3m","3PM"],["fg3a","3PA",1],["tpp","3P%",1]];
+const HD=[["age","AGE"],["gp","GP"],["g","G"],...COLS],PCT=new Set(["freq","f2","f3","fgp","efg","fg2p","tpp"]);
+const fmt=(k,v)=>PCT.has(k)?(v*100).toFixed(1):v.toFixed($("mode").value=="Totals"?0:1);
+function stat(p){const r=p.r[$("rng").value];if(!r)return null;const m=$("mode").value=="Totals"?1:1/p.gp;
+const[fm,fa,m2,a2,m3,a3,fr,f2,f3]=r;
+return{ok:fa>=+$("min").value&&fa>0,age:p.age,gp:p.gp,g:p.g,freq:fr,fgm:fm*m,fga:fa*m,fgp:fa?fm/fa:0,efg:fa?(fm+.5*m3)/fa:0,f2:f2,fg2m:m2*m,fg2a:a2*m,fg2p:a2?m2/a2:0,f3:f3,fg3m:m3*m,fg3a:a3*m,tpp:a3?m3/a3:0,z:p.z}}
+function col(p){p=Math.max(0,Math.min(100,p));const a=p<50?[61,125,202]:[210,45,73],b=[170,175,185],t=Math.abs(p-50)/50;
+return`rgb(${b.map((x,i)=>Math.round(x+(a[i]-x)*t))})`}
+function bc(p){p=Math.max(0,Math.min(100,p));const a=p<50?[70,105,180]:[217,34,43],b=[176,204,208],t=Math.pow(Math.abs(p-50)/50,.8);return`rgb(${b.map((x,i)=>Math.round(x+(a[i]-x)*t))})`}
+let sk="efg",sel=-1,S=[];
+function calc(){S=P.map(stat);const Q=S.filter(s=>s&&s.ok);COLS.forEach(([k])=>{const v=Q.map(s=>s[k]);Q.forEach(s=>{s["p_"+k]=Math.round(100*v.filter(x=>x<s[k]).length/Math.max(1,v.length-1))})})}
+function render(){setSeason();calc();
+$("hd").innerHTML="<th>#</th><th>PLAYER</th><th>TEAM</th>"+HD.map(([k,l])=>`<th data-k="${k}">${l}${sk==k?" ▼":""}</th>`).join("");
+const q=$("q").value.toLowerCase(),ps=$("pos").value;
+const rows=P.map((p,i)=>i).filter(i=>S[i]&&S[i].ok&&(!ps||P[i].pos==ps)&&P[i].n.toLowerCase().includes(q)).sort((a,b)=>S[b][sk]-S[a][sk]);
+if(!rows.includes(sel))sel=rows.length?rows[0]:-1;
+$("tb").innerHTML=rows.map((i,j)=>`<tr data-i="${i}" class="${i==sel?"sel":""}"><td>${j+1}</td><td>${P[i].n}</td><td>${P[i].t}</td><td>${S[i].age}</td><td>${S[i].gp}</td><td>${S[i].g}</td>`+COLS.map(([k,l,pl])=>`<td>${fmt(k,S[i][k])}${pl?`<span class="pill" style="background:${col(S[i]["p_"+k])}">${S[i]["p_"+k]}</span>`:""}</td>`).join("")+"</tr>").join("")||"<tr><td colspan=19>No players found</td></tr>";
+card()}
+function court(z){const c=k=>col(50+(z[k][1]?z[k][0]/z[k][1]-ZA[k]:0)*500),F=k=>z[k][1]?c(k):"var(--mid)";
+const T=(x,y,k,s)=>`<text x="${x}" y="${y}" text-anchor="middle" font-size="${s||15}" font-weight="700" fill="#fff"><title>${z[k][0]}/${z[k][1]}</title>${z[k][1]?Math.round(100*z[k][0]/z[k][1])+"%":"–"}</text>`;
+return`<svg viewBox="0 0 500 340"><defs><clipPath id="in"><path d="M30,0V139.5A237.5,237.5 0 0 0 470,139.5V0Z"/></clipPath><clipPath id="out"><path clip-rule="evenodd" d="M0,0H500V340H0Z M30,0V139.5A237.5,237.5 0 0 0 470,139.5V0Z"/></clipPath></defs>
+<rect x="30" y="0" width="440" height="340" fill="${F(2)}" clip-path="url(#in)"/><rect x="190" y="0" width="120" height="190" fill="${F(1)}"/>
+<circle cx="250" cy="50" r="40" fill="${F(0)}"/>
+<rect x="0" y="0" width="30" height="140" fill="${F(3)}" clip-path="url(#out)"/><rect x="470" y="0" width="30" height="140" fill="${F(4)}" clip-path="url(#out)"/><rect x="0" y="140" width="500" height="200" fill="${F(5)}" clip-path="url(#out)"/>
+<g fill="none" stroke="var(--card)" stroke-width="3"><path d="M30,0V139.5A237.5,237.5 0 0 0 470,139.5V0"/><rect x="190" y="0" width="120" height="190"/><circle cx="250" cy="50" r="40"/><path d="M190,190H310"/></g>
+<circle cx="250" cy="30" r="7" fill="none" stroke="#fff" stroke-width="2.5"/>
+${T(250,66,0)}${T(250,140,1)}${T(110,100,2)}${T(390,100,2)}${T(15,80,3,12)}${T(485,80,4,12)}${T(250,300,5)}</svg>`}
 
-    <div class="table-wrap">
-      <table id="statsTable">
-        <thead id="tableHead"></thead>
-        <tbody id="tableBody">
-          <tr><td colspan="10" class="status-msg">Loading defensive dataset...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Player Savant Percentile Card Modal -->
-  <div class="modal-backdrop" id="playerModal">
-    <div class="modal">
-      <div class="modal-header">
-        <div>
-          <h2 id="modalPlayerName">Player Name</h2>
-          <p id="modalPlayerMeta" style="color: var(--muted); font-size: 0.85rem;"></p>
-        </div>
-        <button class="close-btn" id="closeModalBtn">Close</button>
-      </div>
-      <div id="modalBars"></div>
-    </div>
-  </div>
-
-  <script>
-    let allPlayers = [];
-    let currentView = "overview";
-    let sortKey = "DEF_WS";
-    let sortAsc = false;
-
-    const VIEWS = {
-      overview: [
-        { key: "PLAYER_NAME", label: "Player" },
-        { key: "TEAM_ABBREVIATION", label: "Team" },
-        { key: "GP", label: "GP" },
-        { key: "MIN", label: "MIN" },
-        { key: "DEF_RATING", label: "DEF RTG", pctKey: "DEF_RATING_PCT" },
-        { key: "D_FG_PCT", label: "DFG%", pctKey: "D_FG_PCT_PCT" },
-        { key: "PCT_PLUSMINUS", label: "DIFF%", pctKey: "PCT_PLUSMINUS_PCT" },
-        { key: "STL", label: "STL", pctKey: "STL_PCT" },
-        { key: "BLK", label: "BLK", pctKey: "BLK_PCT" },
-        { key: "DREB_PCT", label: "DREB%", pctKey: "DREB_PCT_PCT" },
-        { key: "DEF_WS", label: "DWS", pctKey: "DEF_WS_PCT" }
-      ],
-      zones: [
-        { key: "PLAYER_NAME", label: "Player" },
-        { key: "TEAM_ABBREVIATION", label: "Team" },
-        { key: "D_FGA", label: "DFGA" },
-        { key: "D_FG_PCT", label: "Overall DFG%", pctKey: "D_FG_PCT_PCT" },
-        { key: "PCT_PLUSMINUS", label: "Overall Diff%" },
-        { key: "LT_06_FG_PCT", label: "<6ft Rim DFG%", pctKey: "LT_06_FG_PCT_PCT" },
-        { key: "LT_06_PLUSMINUS", label: "<6ft Diff%" },
-        { key: "GT_15_FG_PCT", label: ">15ft Perim DFG%", pctKey: "GT_15_FG_PCT_PCT" },
-        { key: "GT_15_PLUSMINUS", label: ">15ft Diff%" }
-      ],
-      hustle: [
-        { key: "PLAYER_NAME", label: "Player" },
-        { key: "TEAM_ABBREVIATION", label: "Team" },
-        { key: "MIN", label: "MIN" },
-        { key: "CONTESTED_SHOTS", label: "Contested", pctKey: "CONTESTED_SHOTS_PCT" },
-        { key: "CONTESTED_SHOTS_2PT", label: "2PT Cont" },
-        { key: "CONTESTED_SHOTS_3PT", label: "3PT Cont" },
-        { key: "DEFLECTIONS", label: "Deflections", pctKey: "DEFLECTIONS_PCT" },
-        { key: "LOOSE_BALLS_RECOVERED", label: "Loose Balls", pctKey: "LOOSE_BALLS_RECOVERED_PCT" },
-        { key: "CHARGES_DRAWN", label: "Charges", pctKey: "CHARGES_DRAWN_PCT" },
-        { key: "BOX_OUTS", label: "Box Outs", pctKey: "BOX_OUTS_PCT" }
-      ]
-    };
-
-    function pctColor(pct) {
-      if (pct == null) return "#334155";
-      if (pct >= 85) return "#dc2626";
-      if (pct >= 65) return "#ea580c";
-      if (pct >= 40) return "#475569";
-      return "#0284c7";
-    }
-
-    async function loadSeason(season) {
-      const tbody = document.getElementById("tableBody");
-      tbody.innerHTML = `<tr><td colspan="11" class="status-msg">Loading data/defense-${season}.json...</td></tr>`;
-      try {
-        const res = await fetch(`data/defense-${season}.json`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        allPlayers = data.players || [];
-        populateTeams();
-        renderTable();
-      } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="11" class="status-msg">Could not load <code>data/defense-${season}.json</code>. Run <code>python update_data.py</code> first.</td></tr>`;
-      }
-    }
-
-    function populateTeams() {
-      const select = document.getElementById("teamSelect");
-      const teams = [...new Set(allPlayers.map(p => p.TEAM_ABBREVIATION).filter(Boolean))].sort();
-      select.innerHTML = `<option value="ALL">All Teams</option>` +
-        teams.map(t => `<option value="${t}">${t}</option>`).join("");
-    }
-
-    function renderTable() {
-      const cols = VIEWS[currentView];
-      const thead = document.getElementById("tableHead");
-      thead.innerHTML = `<tr>${cols.map(c => `<th data-key="${c.key}">${c.label}${sortKey === c.key ? (sortAsc ? " ▲" : " ▼") : ""}</th>`).join("")}</tr>`;
-
-      thead.querySelectorAll("th").forEach(th => {
-        th.addEventListener("click", () => {
-          const k = th.dataset.key;
-          if (sortKey === k) sortAsc = !sortAsc;
-          else { sortKey = k; sortAsc = false; }
-          renderTable();
-        });
-      });
-
-      const team = document.getElementById("teamSelect").value;
-      const minGp = parseInt(document.getElementById("minGpInput").value || "0", 10);
-      const q = document.getElementById("searchInput").value.trim().toLowerCase();
-
-      const filtered = allPlayers.filter(p => {
-        if (team !== "ALL" && p.TEAM_ABBREVIATION !== team) return false;
-        if ((p.GP || 0) < minGp) return false;
-        if (q && !(p.PLAYER_NAME || "").toLowerCase().includes(q)) return false;
-        return true;
-      });
-
-      filtered.sort((a, b) => {
-        const va = a[sortKey];
-        const vb = b[sortKey];
-        if (va == null) return 1;
-        if (vb == null) return -1;
-        if (typeof va === "string") return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
-        return sortAsc ? va - vb : vb - va;
-      });
-
-      const tbody = document.getElementById("tableBody");
-      if (!filtered.length) {
-        tbody.innerHTML = `<tr><td colspan="${cols.length}" class="status-msg">No players match current filters.</td></tr>`;
-        return;
-      }
-
-      tbody.innerHTML = filtered.slice(0, 150).map(p => {
-        const cells = cols.map(c => {
-          const val = p[c.key];
-          if (c.key === "PLAYER_NAME") return `<td class="player-name">${val ?? "-"}</td>`;
-          if (c.key === "TEAM_ABBREVIATION") return `<td><span class="team-tag">${val ?? "-"}</span></td>`;
-          if (c.pctKey && p[c.pctKey] != null) {
-            const pct = p[c.pctKey];
-            return `<td>${val ?? "-"} <span class="pct-pill" style="background:${pctColor(pct)}">${pct}</span></td>`;
-          }
-          return `<td>${val ?? "-"}</td>`;
-        }).join("");
-        return `<tr data-pid="${p.PLAYER_ID}">${cells}</tr>`;
-      }).join("");
-
-      tbody.querySelectorAll("tr").forEach(tr => {
-        tr.addEventListener("click", () => {
-          const pid = Number(tr.dataset.pid);
-          const player = allPlayers.find(x => x.PLAYER_ID === pid);
-          if (player) openModal(player);
-        });
-      });
-    }
-
-    function openModal(p) {
-      document.getElementById("modalPlayerName").textContent = p.PLAYER_NAME;
-      document.getElementById("modalPlayerMeta").textContent =
-        `${p.TEAM_ABBREVIATION} • ${p.GP} GP • ${p.MIN} MPG • Def Rating: ${p.DEF_RATING ?? "-"}`;
-
-      const metrics = [
-        { label: "Defensive Rating", val: p.DEF_RATING, pct: p.DEF_RATING_PCT },
-        { label: "Overall Opponent FG%", val: p.D_FG_PCT != null ? p.D_FG_PCT + "%" : "-", pct: p.D_FG_PCT_PCT },
-        { label: "FG% Differential", val: p.PCT_PLUSMINUS != null ? p.PCT_PLUSMINUS + "%" : "-", pct: p.PCT_PLUSMINUS_PCT },
-        { label: "Rim Protection (<6ft)", val: p.LT_06_FG_PCT != null ? p.LT_06_FG_PCT + "%" : "-", pct: p.LT_06_FG_PCT_PCT },
-        { label: "Perimeter DFG% (>15ft)", val: p.GT_15_FG_PCT != null ? p.GT_15_FG_PCT + "%" : "-", pct: p.GT_15_FG_PCT_PCT },
-        { label: "Contested Shots / G", val: p.CONTESTED_SHOTS, pct: p.CONTESTED_SHOTS_PCT },
-        { label: "Deflections / G", val: p.DEFLECTIONS, pct: p.DEFLECTIONS_PCT },
-        { label: "Steals / G", val: p.STL, pct: p.STL_PCT },
-        { label: "Blocks / G", val: p.BLK, pct: p.BLK_PCT },
-        { label: "Defensive Reb %", val: p.DREB_PCT != null ? p.DREB_PCT + "%" : "-", pct: p.DREB_PCT_PCT },
-        { label: "Loose Balls / G", val: p.LOOSE_BALLS_RECOVERED, pct: p.LOOSE_BALLS_RECOVERED_PCT },
-        { label: "Box Outs / G", val: p.BOX_OUTS, pct: p.BOX_OUTS_PCT },
-        { label: "Defensive Win Shares", val: p.DEF_WS, pct: p.DEF_WS_PCT }
-      ];
-
-      document.getElementById("modalBars").innerHTML = metrics.map(m => {
-        const pct = m.pct ?? 0;
-        return `
-          <div class="bar-row">
-            <div><strong>${m.label}</strong> <span style="color:var(--muted)">(${m.val ?? "-"})</span></div>
-            <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${pctColor(m.pct)}"></div></div>
-            <div style="text-align:right"><span class="pct-pill" style="background:${pctColor(m.pct)}">${m.pct ?? "-"}</span></div>
-          </div>
-        `;
-      }).join("");
-
-      document.getElementById("playerModal").classList.add("open");
-    }
-
-    document.getElementById("closeModalBtn").addEventListener("click", () => {
-      document.getElementById("playerModal").classList.remove("open");
-    });
-    document.getElementById("playerModal").addEventListener("click", (e) => {
-      if (e.target.id === "playerModal") e.target.classList.remove("open");
-    });
-
-    document.querySelectorAll(".tab-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-        currentView = btn.dataset.view;
-        renderTable();
-      });
-    });
-
-    document.getElementById("seasonSelect").addEventListener("change", (e) => loadSeason(e.target.value));
-    document.getElementById("teamSelect").addEventListener("change", renderTable);
-    document.getElementById("minGpInput").addEventListener("input", renderTable);
-    document.getElementById("searchInput").addEventListener("input", renderTable);
-
-    loadSeason("2024-25");
-  </script>
-</body>
-</html>
+function card(){const p=P[sel],s=S[sel];if(!p||!s){$("pcard").innerHTML="<div class=sub>No qualified players for these filters.</div>";return}
+$("pcard").innerHTML=`<h2>${p.n}</h2><div class="sub">${p.t} · ${p.pos||"–"} · Age ${p.age} · ${$("season").value} · ${p.gp} GP (${p.g} G) · ${$("rng").value}</div>
+<div class="two"><div><div style="font-size:12px;color:var(--mut);text-transform:uppercase;margin-bottom:2px">Percentile Rankings</div>
+${COLS.filter(c=>c[0]!="freq").map(([k,l])=>{const pc=s["p_"+k];return`<div class="pc"><span class="nm">${l}</span><div class="bar"><div class="fill" style="width:${Math.max(pc,8)}%;background:${bc(pc)}"></div><div class="dot" style="left:${Math.max(pc,8)}%;background:${bc(pc)}">${pc}</div></div><span class="v">${fmt(k,s[k])}</span></div>`}).join("")}</div>
+<div><div style="font-size:12px;color:var(--mut);text-transform:uppercase;margin-bottom:4px">Shot Chart · FG% by zone</div>${court(s.z)}
+<div class="note">Red = above league-average efficiency, blue = below. Gray = no attempts. Hover a zone for makes/attempts.</div></div></div>`}
+$("tb").onclick=e=>{const r=e.target.closest("tr");if(r&&r.dataset.i){sel=+r.dataset.i;render();$("pcard").scrollIntoView({behavior:"smooth",block:"nearest"})}};
+$("hd").onclick=e=>{const k=e.target.dataset.k;if(k){sk=k;render()}};
+async function load(s){if(!ALL[s]){const r=await fetch("data/"+s+".json");ALL[s]=await r.json()}}
+["season","rng","mode","pos","q","min"].forEach(id=>$(id).oninput=async()=>{if(id=="season"){sel=-1;await load($("season").value)}render()});
+(async()=>{try{const m=await(await fetch("data/meta.json")).json();$("season").innerHTML=m.seasons.map(s=>`<option>${s}</option>`).join("");$("upd").textContent=new Date(m.updated).toLocaleString();await load(m.seasons[0]);render()}catch(e){$("tb").innerHTML="<tr><td colspan=19>Couldn’t load data. Open this through GitHub Pages or a local web server, not as a file.</td></tr>"}})();
+</script></body></html>
