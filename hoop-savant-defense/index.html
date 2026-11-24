@@ -7,34 +7,38 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1420;--card:#172033;--tx:#e8ecf3;--mut:#9aa5b8;--bd:#2a3550;--nav:#0a0f19;--mid:#3a4458}}
 html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.4 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif}
-header{background:var(--nav);color:#fff;padding:14px 16px}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.4 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;overflow-x:hidden}
+header{background:var(--nav);color:#fff;padding:14px 0}
+.h-in{width:96%;max-width:1720px;margin:0 auto;padding:0 12px}
 header h1{margin:0;font-size:20px;letter-spacing:.5px}header h1 span{color:#ff5a73}
 header p{margin:2px 0 0;font-size:12px;opacity:.75}
-main{max-width:1200px;margin:0 auto;padding:12px}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:12px;margin-bottom:12px}
+main{width:96%;max-width:1720px;margin:0 auto;padding:12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:12px;margin-bottom:12px;width:100%}
 .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
 label{font-size:11px;color:var(--mut);text-transform:uppercase;display:block;margin-bottom:2px}
 select,input{width:100%;padding:7px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--tx);font-size:14px}
-.wrap{overflow-x:auto}
-table{border-collapse:collapse;width:100%;min-width:1550px}
-th,td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--bd);white-space:nowrap}
-th{font-size:11px;text-transform:uppercase;color:var(--mut);cursor:pointer;user-select:none}
-th:first-child,td:first-child,th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3){text-align:left}td:nth-child(2),th:nth-child(2){position:sticky;left:0;background:var(--card);font-weight:600}
+.wrap{width:100%;overflow-x:auto}
+table{border-collapse:collapse;width:100%;margin:0 auto;font-size:12.5px}
+th,td{padding:6px 5px;text-align:center;vertical-align:middle;border-bottom:1px solid var(--bd);white-space:nowrap}
+th{font-size:10.5px;text-transform:uppercase;color:var(--mut);cursor:pointer;user-select:none}
+th:first-child,td:first-child{width:34px;text-align:center}
+th:nth-child(2),td:nth-child(2){text-align:left;padding-left:8px;padding-right:10px;position:sticky;left:0;background:var(--card);font-weight:600;z-index:1}
+th:nth-child(3),td:nth-child(3){text-align:center}
 tbody tr{cursor:pointer}tbody tr:hover{background:var(--bg)}tr.sel{background:var(--bg)}
-.pill{display:inline-block;min-width:28px;padding:1px 6px;border-radius:10px;color:#fff;font-size:11px;font-weight:600;margin-left:4px;text-align:center}
+.pill{display:inline-block;min-width:26px;padding:1px 5px;border-radius:10px;color:#fff;font-size:10.5px;font-weight:600;margin-left:3px;text-align:center}
 .pc{display:flex;align-items:center;gap:10px;margin:4px 0}
-.pc .nm{width:84px;text-align:right;font-size:13px;font-weight:600;color:var(--tx)}
+.pc .nm{width:92px;text-align:right;font-size:13px;font-weight:600;color:var(--tx)}
 .pc .bar{flex:1;height:28px;position:relative}.pc .bar::before{content:"";position:absolute;left:0;right:0;top:10px;height:8px;background:var(--mid);opacity:.7}.pc .bar::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:rgba(255,255,255,.55)}.pc .fill{position:absolute;left:0;top:0;height:28px}
 .pc .dot{position:absolute;top:-2px;width:32px;height:32px;border-radius:50%;margin-left:-26px;border:2px solid var(--card);color:#fff;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;z-index:2}
 .pc .v{width:52px;text-align:right;font-size:14px;font-weight:600}
 h2{margin:0 0 2px;font-size:18px}.sub{color:var(--mut);font-size:12px;margin-bottom:8px}
 .two{display:grid;grid-template-columns:1fr;gap:12px}
+@media (min-width:900px){#pcard .two{grid-template-columns:1fr 1fr;align-items:start}}
 
-svg{width:100%;height:auto;display:block}
-.note{font-size:11px;color:var(--mut)}.mini table{min-width:0}.mini td,.mini th{position:static!important;text-align:right;font-weight:400}.mini td:first-child,.mini th:first-child{text-align:left}
+svg{width:100%;height:auto;display:block;max-width:520px;margin:0 auto}
+.note{font-size:11px;color:var(--mut);text-align:center}.mini table{min-width:0;width:100%}.mini td,.mini th{position:static!important;text-align:center;font-weight:400}.mini td:first-child,.mini th:first-child{text-align:left}
 </style></head><body>
-<header><h1>HOOP <span>SAVANT</span></h1><p>Shooting Dashboard · percentile rankings &amp; shot charts</p></header>
+<header><div class="h-in"><h1>HOOP <span>SAVANT</span></h1><p>Shooting Dashboard · percentile rankings &amp; shot charts</p></div></header>
 <main>
 <div class="card"><div class="filters">
 <div><label>View</label><select id="view"><option>Shooting</option><option>Defense</option></select></div>
@@ -49,7 +53,7 @@ svg{width:100%;height:auto;display:block}
 <div class="card"><h2>Leaderboard</h2><div class="sub">Tap any column header to sort. Tap a row to open the player card below.</div><div class="wrap"><table><thead><tr id="hd"></tr></thead><tbody id="tb"></tbody></table></div></div>
 <div class="card" id="pcard"></div>
 </div>
-<p class="note">Data: NBA.com shot dashboard via nba_api (regular seasons; last updated <span id="upd">–</span>). Percentiles are ranked among players meeting the Min FGA filter. Shot chart zones use NBA.com\'s 6 shooting zones; hover a zone for makes/attempts.</p>
+<p class="note">Data: NBA.com shot dashboard via nba_api (regular seasons; last updated <span id="upd">–</span>). Percentiles are ranked among players meeting the Min FGA filter. Shot chart zones use NBA.com's 6 shooting zones; hover a zone for makes/attempts.</p>
 </main>
 <script>
 const ALL={};let P=[],ZA=[];
