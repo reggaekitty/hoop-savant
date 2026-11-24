@@ -2,12 +2,13 @@ import json
 import os
 import time
 from datetime import datetime, timezone
+from nba_api.stats.static import teams as nba_teams
 from nba_api.stats.endpoints import (
     leaguedashplayerstats,
     leaguedashplayerptshot,
     leaguedashptdefend,
     leaguehustlestatsplayer,
-    playerdashptreb
+    teamplayeronoffsummary
 )
 
 SEASONS = [
@@ -28,83 +29,6 @@ def safe_call(fn, **kwargs):
             print(f"  [Attempt {attempt + 1}/3] {fn.__name__} failed: {e}")
             time.sleep(2 * (attempt + 1))
     return {}
-
-
-def build_shooting_season(season):
-    print(f"[{season}] Fetching Shooting data...")
-    base = safe_call(
-        leaguedashplayerstats.LeagueDashPlayerStats,
-        season=season,
-        season_type_all_star="Regular Season",
-        per_mode_detailed="Totals"
-    ).get("LeagueDashPlayerStats", [])
-    time.sleep(0.8)
-
-    bio = safe_call(
-        leaguedashplayerstats.LeagueDashPlayerStats,
-        season=season,
-        season_type_all_star="Regular Season",
-        measure_type_detailed_defense="Base"
-    ).get("LeagueDashPlayerStats", [])
-    pos_map = {}
-    for r in bio:
-        # fallback position mapping if available
-        pos_map[r["PLAYER_ID"]] = ""
-
-    ranges = {
-        "Overall": None,
-        "Catch and Shoot": "Catch and Shoot",
-        "Pullups": "Pullups",
-        "Less Than 10 ft": "Less Than 10 ft"
-    }
-    range_data = {}
-    for label, general_range in ranges.items():
-        kwargs = {
-            "season": season,
-            "season_type_all_star": "Regular Season",
-            "per_mode_simple": "Totals"
-        }
-        if general_range:
-            kwargs["general_range_nullable"] = general_range
-        rows = safe_call(leaguedashplayerptshot.LeagueDashPlayerPtShot, **kwargs).get("LeagueDashPlayerPtShot", [])
-        range_data[label] = {r["PLAYER_ID"]: r for r in rows}
-        time.sleep(0.8)
-
-    players = []
-    for r in base:
-        pid = r["PLAYER_ID"]
-        gp = r.get("GP", 0)
-        if gp == 0:
-            continue
-        r_dict = {}
-        for label, pmap in range_data.items():
-            sr = pmap.get(pid)
-            if sr:
-                r_dict[label] = [
-                    sr.get("FGM", 0),
-                    sr.get("FGA", 0),
-                    sr.get("FG2M", 0),
-                    sr.get("FG2A", 0),
-                    sr.get("FG3M", 0),
-                    sr.get("FG3A", 0),
-                    round(sr.get("FGA_FREQUENCY", 0), 4),
-                    round(sr.get("FG2A_FREQUENCY", 0), 4),
-                    round(sr.get("FG3A_FREQUENCY", 0), 4)
-                ]
-        # 6 shooting zones approximation from base or shot dashboard if stored
-        z = [[0, 0] for _ in range(6)]
-        players.append({
-            "id": pid,
-            "n": r.get("PLAYER_NAME"),
-            "t": r.get("TEAM_ABBREVIATION"),
-            "pos": pos_map.get(pid, ""),
-            "age": int(r.get("AGE") or 0),
-            "gp": gp,
-            "g": gp,
-            "r": r_dict,
-            "z": z
-        })
-    return players
 
 
 def build_defense_season(season):
@@ -147,7 +71,6 @@ def build_defense_season(season):
         if gp == 0:
             continue
         h = hustle_map.get(pid, {})
-        # d array: [DEF_RATING, DREB, DREB_PCT, STL, STL_PCT, BLK, BLK_PCT, DEF_WS, CONTESTED_SHOTS, DEFLECTIONS, CHARGES_DRAWN]
         d_arr = [
             r.get("DEF_RATING"),
             r.get("DREB", 0),
@@ -192,7 +115,6 @@ def build_defense_season(season):
 
 def build_rebounding_season(season):
     print(f"[{season}] Fetching Offensive & Defensive Rebounding data...")
-    # 1. Base totals (OREB, DREB, REB, MIN, GP)
     base = safe_call(
         leaguedashplayerstats.LeagueDashPlayerStats,
         season=season,
@@ -202,7 +124,6 @@ def build_rebounding_season(season):
     ).get("LeagueDashPlayerStats", [])
     time.sleep(0.8)
 
-    # 2. Advanced rebounding percentages (OREB_PCT, DREB_PCT, REB_PCT)
     adv = safe_call(
         leaguedashplayerstats.LeagueDashPlayerStats,
         season=season,
@@ -213,7 +134,6 @@ def build_rebounding_season(season):
     adv_map = {r["PLAYER_ID"]: r for r in adv}
     time.sleep(0.8)
 
-    # 3. Hustle box-outs (BOX_OUTS, OFF_BOXOUTS, DEF_BOXOUTS, BOX_OUT_PLAYER_TEAM_REBS)
     hustle = safe_call(
         leaguehustlestatsplayer.LeagueHustleStatsPlayer,
         season=season,
@@ -245,17 +165,11 @@ def build_rebounding_season(season):
         box_out_rebs = h.get("BOX_OUT_PLAYER_REBS", 0)
         loose_balls = h.get("LOOSE_BALLS_RECOVERED", 0)
 
-        # rb array:
-        # [0: OREB, 1: OREB_PCT, 2: DREB, 3: DREB_PCT, 4: REB, 5: REB_PCT,
-        #  6: BOX_OUTS, 7: OFF_BOXOUTS, 8: DEF_BOXOUTS, 9: BOX_OUT_PLAYER_REBS, 10: LOOSE_BALLS]
         rb_arr = [
             oreb, oreb_pct, dreb, dreb_pct, reb, reb_pct,
             box_outs, off_boxouts, def_boxouts, box_out_rebs, loose_balls
         ]
 
-        # Breakdown by Rebound Type for the range selector:
-        # "Overall", "Offensive", "Defensive"
-        # Format per range: [REBS, REB_PCT, BOX_OUTS, BOX_OUT_REBS]
         r_dict = {
             "Overall": [reb, reb_pct, box_outs, box_out_rebs],
             "Offensive": [oreb, oreb_pct, off_boxouts, None],
@@ -280,13 +194,159 @@ def build_rebounding_season(season):
     print(f"  Saved {len(players)} players -> {out_path}")
 
 
+def build_on_off_season(season):
+    print(f"[{season}] Fetching Team Player On/Off Advanced Ratings...")
+    # Base player info for age, games played, and minutes
+    base = safe_call(
+        leaguedashplayerstats.LeagueDashPlayerStats,
+        season=season,
+        season_type_all_star="Regular Season",
+        measure_type_detailed_defense="Base",
+        per_mode_detailed="Totals"
+    ).get("LeagueDashPlayerStats", [])
+    base_map = {r["PLAYER_ID"]: r for r in base}
+    time.sleep(0.8)
+
+    all_teams = nba_teams.get_teams()
+    # Aggregate across teams (handles mid-season trades by weighting by on-court minutes)
+    agg = {}
+
+    for tm in all_teams:
+        tid = tm["id"]
+        abbr = tm["abbreviation"]
+        res = safe_call(
+            teamplayeronoffsummary.TeamPlayerOnOffSummary,
+            team_id=tid,
+            season=season,
+            season_type_all_star="Regular Season",
+            measure_type_detailed_defense="Advanced",
+            per_mode_detailed="Totals"
+        )
+        on_rows = res.get("PlayersOnCourtTeamPlayerOnOffSummary", [])
+        off_rows = res.get("PlayersOffCourtTeamPlayerOnOffSummary", [])
+        off_by_pid = {r["VS_PLAYER_ID"]: r for r in off_rows}
+
+        for on_r in on_rows:
+            pid = on_r.get("VS_PLAYER_ID")
+            off_r = off_by_pid.get(pid)
+            if not pid or not off_r:
+                continue
+
+            on_min = float(on_r.get("MIN") or 0)
+            off_min = float(off_r.get("MIN") or 0)
+            if on_min <= 0:
+                continue
+
+            on_ortg = float(on_r.get("OFF_RATING") or 0)
+            on_drtg = float(on_r.get("DEF_RATING") or 0)
+            on_nrtg = float(on_r.get("NET_RATING") or 0)
+            on_pace = float(on_r.get("PACE") or 0)
+
+            off_ortg = float(off_r.get("OFF_RATING") or 0)
+            off_drtg = float(off_r.get("DEF_RATING") or 0)
+            off_nrtg = float(off_r.get("NET_RATING") or 0)
+
+            if pid not in agg:
+                b = base_map.get(pid, {})
+                # Format player name from "Last, First" if needed
+                raw_name = on_r.get("VS_PLAYER_NAME", "")
+                if ", " in raw_name:
+                    parts = raw_name.split(", ", 1)
+                    clean_name = f"{parts[1]} {parts[0]}"
+                else:
+                    clean_name = raw_name
+
+                agg[pid] = {
+                    "id": pid,
+                    "n": b.get("PLAYER_NAME") or clean_name,
+                    "t": b.get("TEAM_ABBREVIATION") or abbr,
+                    "pos": "",
+                    "age": int(b.get("AGE") or 0),
+                    "gp": int(b.get("GP") or on_r.get("GP") or 0),
+                    "on_min": 0.0,
+                    "off_min": 0.0,
+                    "w_on_ortg": 0.0,
+                    "w_off_ortg": 0.0,
+                    "w_on_drtg": 0.0,
+                    "w_off_drtg": 0.0,
+                    "w_on_nrtg": 0.0,
+                    "w_off_nrtg": 0.0,
+                    "w_on_pace": 0.0
+                }
+
+            rec = agg[pid]
+            rec["on_min"] += on_min
+            rec["off_min"] += off_min
+            rec["w_on_ortg"] += on_ortg * on_min
+            rec["w_off_ortg"] += off_ortg * on_min
+            rec["w_on_drtg"] += on_drtg * on_min
+            rec["w_off_drtg"] += off_drtg * on_min
+            rec["w_on_nrtg"] += on_nrtg * on_min
+            rec["w_off_nrtg"] += off_nrtg * on_min
+            rec["w_on_pace"] += on_pace * on_min
+
+        time.sleep(0.65)
+
+    players = []
+    for pid, rec in agg.items():
+        m_on = rec["on_min"]
+        if m_on <= 0:
+            continue
+        on_ortg = round(rec["w_on_ortg"] / m_on, 1)
+        off_ortg = round(rec["w_off_ortg"] / m_on, 1)
+        diff_ortg = round(on_ortg - off_ortg, 1)
+
+        on_drtg = round(rec["w_on_drtg"] / m_on, 1)
+        off_drtg = round(rec["w_off_drtg"] / m_on, 1)
+        diff_drtg = round(on_drtg - off_drtg, 1)
+
+        on_nrtg = round(rec["w_on_nrtg"] / m_on, 1)
+        off_nrtg = round(rec["w_off_nrtg"] / m_on, 1)
+        diff_nrtg = round(on_nrtg - off_nrtg, 1)
+
+        on_pace = round(rec["w_on_pace"] / m_on, 1)
+        off_min = round(rec["off_min"], 1)
+        on_min_r = round(m_on, 1)
+        tot_team_min = on_min_r + off_min
+        min_share = round(on_min_r / tot_team_min, 4) if tot_team_min > 0 else 0.0
+
+        # oo array:
+        # [0: ON_MIN, 1: OFF_MIN, 2: MIN_SHARE,
+        #  3: ON_ORTG, 4: OFF_ORTG, 5: DIFF_ORTG,
+        #  6: ON_DRTG, 7: OFF_DRTG, 8: DIFF_DRTG,
+        #  9: ON_NRTG, 10: OFF_NRTG, 11: DIFF_NRTG,
+        #  12: ON_PACE]
+        oo_arr = [
+            on_min_r, off_min, min_share,
+            on_ortg, off_ortg, diff_ortg,
+            on_drtg, off_drtg, diff_drtg,
+            on_nrtg, off_nrtg, diff_nrtg,
+            on_pace
+        ]
+
+        players.append({
+            "id": pid,
+            "n": rec["n"],
+            "t": rec["t"],
+            "pos": rec["pos"],
+            "age": rec["age"],
+            "gp": rec["gp"],
+            "m": on_min_r,
+            "oo": oo_arr
+        })
+
+    out_path = os.path.join(DATA_DIR, f"onoff-{season}.json")
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(players, f, separators=(",", ":"))
+    print(f"  Saved {len(players)} players -> {out_path}")
+
+
 if __name__ == "__main__":
-    valid_seasons = []
     for season in SEASONS:
         try:
+            build_on_off_season(season)
             build_rebounding_season(season)
             build_defense_season(season)
-            valid_seasons.append(season)
         except Exception as err:
             print(f"Skipping {season}: {err}")
 
